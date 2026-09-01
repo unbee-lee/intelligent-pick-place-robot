@@ -1,13 +1,13 @@
 """Explicitly controlled development adapters for issue #4."""
 
 import asyncio
-from datetime import datetime, timezone
 from typing import AsyncIterator, Mapping
 
 from fastapi import FastAPI
 
 from ucs_app.app import create_app
 from ucs_app.interfaces import ControllerUpdate
+from ucs_app.transport import utc_timestamp
 
 
 class ControlledDecisionProvider:
@@ -49,7 +49,7 @@ class ControlledStackerController:
                 "message_id": message_id,
                 "status": "BUSY",
                 "stage": "EXECUTING_MOVES",
-                "timestamp": _utc_timestamp(),
+                "timestamp": utc_timestamp(),
             },
         )
         await asyncio.sleep(self._result_delay_seconds)
@@ -66,7 +66,7 @@ class ControlledStackerController:
                     "observed_positions": None,
                     "error": None,
                 },
-                "completed_at": _utc_timestamp(),
+                "completed_at": utc_timestamp(),
             },
         )
 
@@ -81,7 +81,3 @@ def create_controlled_app(*, result_delay_seconds: float = 0.75) -> FastAPI:
         ),
         composition_label="Controlled development",
     )
-
-
-def _utc_timestamp() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

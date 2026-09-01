@@ -3,8 +3,22 @@
 import asyncio
 import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Mapping, Optional, Set
+from typing import Dict, List, Literal, Mapping, Optional, Set
 from uuid import uuid4
+
+from ucs_contracts.arrangements import TargetArrangement
+
+ActivityKind = Literal[
+    "input",
+    "proposal",
+    "validation",
+    "confirmation_required",
+    "confirmation",
+    "cancellation",
+    "command_publication",
+    "progress",
+    "result",
+]
 
 
 @dataclass(frozen=True)
@@ -12,7 +26,7 @@ class ActivityEvent:
     """One browser-safe event in the structured activity trail."""
 
     sequence: int
-    kind: str
+    kind: ActivityKind
     message: str
     details: Mapping[str, object]
 
@@ -33,23 +47,80 @@ class ActivityEvent:
 
 
 @dataclass
+class ActiveCommand:
+    """The command currently owned by one browser session."""
+
+    message_id: str
+    target: TargetArrangement
+
+
+@dataclass
 class BrowserSession:
     """UCS state belonging to one browser session."""
 
     session_id: str
     workflow_id: Optional[str] = None
-    current_draft: Optional[Dict[str, object]] = None
-    active_message_id: Optional[str] = None
-    active_target: Optional[Dict[str, object]] = None
-    last_successful_arrangement: Optional[Dict[str, object]] = None
+    current_draft: Optional[TargetArrangement] = None
+    active_command: Optional[ActiveCommand] = None
+    last_successful_arrangement: Optional[TargetArrangement] = None
     confirmation_in_progress: bool = False
-    events: List[ActivityEvent] = field(default_factory=list)
-    subscribers: Set[asyncio.Queue[ActivityEvent]] = field(default_factory=set)
+    _events: List[ActivityEvent] = field(default_factory=list)
+    _subscribers: Set[asyncio.Queue[ActivityEvent]] = field(default_factory=set)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+    def emit(
+        self,
+        *,
+        kind: ActivityKind,
+        message: str,
+        details: Optional[Mapping[str, object]] = None,
+    ) -> ActivityEvent:
+        """Append and broadcast one browser-safe activity event."""
+
+        event = ActivityEvent(
+            sequence=len(self._events) + 1,
+            kind=kind,
+            message=message,
+            details={} if details is None else dict(details),
+        )
+        self._events.append(event)
+        for subscriber in self._subscribers:
+            subscriber.put_nowait(event)
+        return event
+
+    def subscribe(self) -> asyncio.Queue[ActivityEvent]:
+        """Attach one SSE stream to this browser session."""
+
+        subscriber: asyncio.Queue[ActivityEvent] = asyncio.Queue()
+        self._subscribers.add(subscriber)
+        return subscriber
+
+    def unsubscribe(self, subscriber: asyncio.Queue[ActivityEvent]) -> None:
+        """Detach a closed SSE stream."""
+
+        self._subscribers.discard(subscriber)
+
+    def activate(self, message_id: str, target: TargetArrangement) -> None:
+        """Replace the confirmed Current draft with one Active command."""
+
+        if self.active_command is not None:
+            raise RuntimeError("browser session already has an Active command")
+        self.current_draft = None
+        self.active_command = ActiveCommand(message_id=message_id, target=target)
+
+    def finish_active(self, *, successful: bool) -> Optional[TargetArrangement]:
+        """Finish the Active command and retain its arrangement on success."""
+
+        if self.active_command is None:
+            raise RuntimeError("browser session has no Active command")
+        if successful:
+            self.last_successful_arrangement = self.active_command.target
+        self.active_command = None
+        return self.last_successful_arrangement
 
 
 class SessionStore:
-    """Own browser sessions and fan out their structured activity events."""
+    """Own the lifetime and lookup of browser sessions."""
 
     def __init__(self) -> None:
         self._sessions: Dict[str, BrowserSession] = {}
@@ -68,40 +139,3 @@ class SessionStore:
         if session_id is None:
             return None
         return self._sessions.get(session_id)
-
-    def emit(
-        self,
-        session: BrowserSession,
-        *,
-        kind: str,
-        message: str,
-        details: Optional[Mapping[str, object]] = None,
-    ) -> ActivityEvent:
-        """Append and broadcast one browser-safe activity event."""
-
-        event = ActivityEvent(
-            sequence=len(session.events) + 1,
-            kind=kind,
-            message=message,
-            details={} if details is None else dict(details),
-        )
-        session.events.append(event)
-        for subscriber in session.subscribers:
-            subscriber.put_nowait(event)
-        return event
-
-    def subscribe(self, session: BrowserSession) -> asyncio.Queue[ActivityEvent]:
-        """Attach one SSE stream to a browser session."""
-
-        subscriber: asyncio.Queue[ActivityEvent] = asyncio.Queue()
-        session.subscribers.add(subscriber)
-        return subscriber
-
-    def unsubscribe(
-        self,
-        session: BrowserSession,
-        subscriber: asyncio.Queue[ActivityEvent],
-    ) -> None:
-        """Detach a closed SSE stream."""
-
-        session.subscribers.discard(subscriber)

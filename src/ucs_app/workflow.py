@@ -1,7 +1,6 @@
 """LangGraph workflow coordinating one controlled Arrangement request."""
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
 from typing import Dict, Literal, Optional, TypedDict, cast
 from uuid import uuid4
 
@@ -11,6 +10,7 @@ from langgraph.graph import END, START, StateGraph
 
 from ucs_app.interfaces import DecisionProvider, StackerController
 from ucs_app.sessions import BrowserSession, SessionStore
+from ucs_app.transport import utc_timestamp
 from ucs_contracts import (
     parse_decision,
     validate_message,
@@ -133,8 +133,7 @@ class UcsWorkflow:
     async def _receive_request(self, state: WorkflowState) -> Dict[str, object]:
         session = self._session(state)
         arrangement_request = state["arrangement_request"]
-        self._sessions.emit(
-            session,
+        session.emit(
             kind="input",
             message="Typed Arrangement request received",
             details={"arrangement_request": arrangement_request},
@@ -164,14 +163,12 @@ class UcsWorkflow:
         if not isinstance(user_message, str):
             raise RuntimeError("PROPOSE decision has no safe user message")
 
-        self._sessions.emit(
-            session,
+        session.emit(
             kind="proposal",
             message=user_message,
             details={"target_positions": target_positions},
         )
-        self._sessions.emit(
-            session,
+        session.emit(
             kind="validation",
             message="Target arrangement validated",
         )
@@ -182,7 +179,7 @@ class UcsWorkflow:
 
     async def _store_current_draft(self, state: WorkflowState) -> Dict[str, object]:
         session = self._session(state)
-        session.current_draft = dict(state["target_positions"])
+        session.current_draft = validate_target_positions(state["target_positions"])
         return {}
 
     async def _announce_confirmation(
@@ -190,8 +187,7 @@ class UcsWorkflow:
         state: WorkflowState,
     ) -> Dict[str, object]:
         session = self._session(state)
-        self._sessions.emit(
-            session,
+        session.emit(
             kind="confirmation_required",
             message="Current draft is waiting for confirmation",
         )
@@ -210,15 +206,12 @@ class UcsWorkflow:
             "message_id": message_id,
             "type": "ARRANGE",
             "target_positions": target_positions,
-            "created_at": _utc_timestamp(),
+            "created_at": utc_timestamp(),
         }
         validate_message("command", command)
 
-        session.current_draft = None
-        session.active_message_id = message_id
-        session.active_target = target_positions
-        self._sessions.emit(
-            session,
+        session.activate(message_id, target)
+        session.emit(
             kind="confirmation",
             message="Confirmation received; Target arrangement revalidated",
         )
@@ -231,8 +224,7 @@ class UcsWorkflow:
         session = self._session(state)
         session.current_draft = None
         session.workflow_id = None
-        self._sessions.emit(
-            session,
+        session.emit(
             kind="cancellation",
             message="Current draft cancelled",
         )
@@ -245,8 +237,7 @@ class UcsWorkflow:
         if not isinstance(message_id, str):
             raise RuntimeError("validated command has no message identifier")
 
-        self._sessions.emit(
-            session,
+        session.emit(
             kind="command_publication",
             message="Command delivered to controlled Stacker Controller",
             details={"message_id": message_id},
@@ -255,13 +246,16 @@ class UcsWorkflow:
         terminal_result: Optional[Mapping[str, object]] = None
         async for update in self._stacker_controller.execute(command):
             validate_message(update.message_type, update.payload)
-            if update.payload.get("message_id") != session.active_message_id:
+            active_command = session.active_command
+            if (
+                active_command is None
+                or update.payload.get("message_id") != active_command.message_id
+            ):
                 raise RuntimeError("Stacker Controller update is not correlated")
 
             if update.message_type == "status":
                 stage = update.payload.get("stage")
-                self._sessions.emit(
-                    session,
+                session.emit(
                     kind="progress",
                     message="Stacker Controller is busy",
                     details={"stage": stage} if isinstance(stage, str) else {},
@@ -288,14 +282,11 @@ class UcsWorkflow:
 
         execution_status = execution.get("status")
         verification_status = verification.get("status")
-        if execution_status == "COMPLETED" and session.active_target is not None:
-            session.last_successful_arrangement = dict(session.active_target)
-
-        session.active_message_id = None
-        session.active_target = None
+        last_successful_arrangement = session.finish_active(
+            successful=execution_status == "COMPLETED"
+        )
         session.workflow_id = None
-        self._sessions.emit(
-            session,
+        session.emit(
             kind="result",
             message=(
                 "Simulation completed the requested arrangement. "
@@ -304,12 +295,10 @@ class UcsWorkflow:
             details={
                 "execution_status": execution_status,
                 "verification_status": verification_status,
-                "last_successful_arrangement": session.last_successful_arrangement,
+                "last_successful_arrangement": (
+                    None
+                    if last_successful_arrangement is None
+                    else last_successful_arrangement.model_dump(mode="json")
+                ),
             },
         )
-
-
-def _utc_timestamp() -> str:
-    """Return an RFC 3339 UTC timestamp for public transport metadata."""
-
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

@@ -76,7 +76,7 @@ def create_app(
     @application.get("/events")
     async def events(request: Request) -> StreamingResponse:
         session = _require_session(request, sessions)
-        subscriber = sessions.subscribe(session)
+        subscriber = session.subscribe()
 
         async def event_stream() -> AsyncIterator[str]:
             try:
@@ -88,7 +88,7 @@ def create_app(
                         continue
                     yield event.as_sse()
             finally:
-                sessions.unsubscribe(session, subscriber)
+                session.unsubscribe(subscriber)
 
         return StreamingResponse(
             event_stream(),
@@ -105,7 +105,7 @@ def create_app(
         async with session.lock:
             if (
                 session.current_draft is not None
-                or session.active_message_id is not None
+                or session.active_command is not None
                 or session.confirmation_in_progress
             ):
                 raise HTTPException(
@@ -137,7 +137,7 @@ def create_app(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="There is no Current draft",
                 )
-            if session.active_message_id is not None or session.confirmation_in_progress:
+            if session.active_command is not None or session.confirmation_in_progress:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="An Active command is already in progress",
