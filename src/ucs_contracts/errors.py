@@ -2,4 +2,4 @@
 
 
 class ContractValidationError(ValueError):
-    """Raised when data does not satisfy a UCS boundary contract."""
+    """Raised when data does not satisfy a UCS interface contract."""

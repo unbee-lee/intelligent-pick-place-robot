@@ -9,7 +9,7 @@ from ucs_contracts.errors import ContractValidationError
 
 
 class FrontPosition(str, Enum):
-    """A destination visible at the UCS boundary."""
+    """A destination visible at the UCS interface."""
 
     FRONT_LEFT = "front_left"
     FRONT_CENTER = "front_center"

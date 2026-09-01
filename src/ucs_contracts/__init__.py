@@ -1,4 +1,4 @@
-"""Executable contracts for the User Command Station boundary."""
+"""Executable contracts for the User Command Station interface."""
 
 from ucs_contracts.arrangements import validate_target_positions
 from ucs_contracts.decisions import parse_decision

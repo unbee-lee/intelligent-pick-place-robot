@@ -1,1 +1,1 @@
-"""Packaged JSON Schemas for the Stacker Controller boundary."""
+"""Packaged JSON Schemas for the Stacker Controller interface."""

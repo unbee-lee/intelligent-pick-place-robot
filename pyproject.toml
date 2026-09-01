@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ucs-contracts"
 version = "0.1.0"
-description = "Executable contracts for the User Command Station boundary"
+description = "Executable contracts for the User Command Station interface"
 requires-python = ">=3.9"
 dependencies = [
     "jsonschema[format]>=4.23,<5",

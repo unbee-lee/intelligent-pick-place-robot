@@ -1,8 +1,9 @@
-# UCS boundary contracts
+# UCS interface contracts
 
-The `ucs_contracts` package is the executable boundary between free-form model
+The `ucs_contracts` package is the executable interface between free-form model
 output, deterministic UCS application logic, and the Stacker Controller (SC).
-It does not implement the UCS runtime, MQTT transport, or the SC simulator.
+It does not implement the UCS runtime, MQTT transport, or the Simulated Stacker
+Controller.
 
 ## Public Python interface
 
