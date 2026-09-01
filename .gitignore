@@ -10,3 +10,10 @@ jetson_inventory.txt
 ROS_userguide.pdf
 braccio-handover-2026-08-31.tar.gz
 jetson-vlm-handover-2026-08-31.tar.gz
+
+# Python development artifacts
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
