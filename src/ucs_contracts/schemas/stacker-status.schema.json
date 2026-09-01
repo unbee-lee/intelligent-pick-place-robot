@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:intelligent-pick-place-robot:stacker-status:1.0",
+  "title": "Stacker status",
+  "description": "A non-terminal progress update from the Stacker Controller.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "message_id",
+    "status",
+    "timestamp"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "const": "BUSY"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "VALIDATING_COMMAND",
+        "OBSERVING_INITIAL_STATE",
+        "PLANNING_MOVES",
+        "EXECUTING_MOVES",
+        "VERIFYING_FINAL_STATE"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
