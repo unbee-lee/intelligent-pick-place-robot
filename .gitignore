@@ -1,0 +1,12 @@
+# macOS metadata
+.DS_Store
+
+# Private local planning and supervisor materials
+local-notes/
+deliverables/supervisor/
+
+# Local machine inventory and handover artifacts
+jetson_inventory.txt
+ROS_userguide.pdf
+braccio-handover-2026-08-31.tar.gz
+jetson-vlm-handover-2026-08-31.tar.gz
