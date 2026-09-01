@@ -1,5 +1,9 @@
 # Intelligent Pick-and-Place Robot with Voice Control
 
+> The current User Command Station work is isolated from the inherited robot
+> implementation. See [Controlled typed UCS](docs/controlled-ucs.md) for the
+> browser-based, confirmation-gated development slice.
+
 **Author:** Timothy Tan (ICP Intern)  
 **Email:** t.l.tan@student.curtin.edu.au  
 **Organization:** Innovation Central Perth  

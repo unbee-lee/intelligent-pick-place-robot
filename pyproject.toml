@@ -5,16 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ucs-contracts"
 version = "0.1.0"
-description = "Executable contracts for the User Command Station interface"
+description = "Executable contracts and browser runtime for the User Command Station"
 requires-python = ">=3.9"
 dependencies = [
+    "fastapi>=0.115,<1",
     "jsonschema[format]>=4.23,<5",
+    "langchain-core>=0.3,<1",
+    "langgraph>=0.2,<1",
     "pydantic>=2.8,<3",
+    "uvicorn>=0.30,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "mypy>=1.11,<2",
+    "playwright>=1.49,<2",
     "pytest>=8.3,<9",
     "types-jsonschema>=4.23,<5",
 ]
@@ -24,6 +29,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 ucs_contracts = ["schemas/*.json"]
+ucs_app = ["web/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
