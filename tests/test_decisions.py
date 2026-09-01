@@ -1,11 +1,7 @@
 import pytest
 
-from ucs_contracts import ContractValidationError
-from ucs_contracts.decisions import (
-    ClarifyDecision,
-    ProposeDecision,
-    RejectDecision,
-    RejectReasonCode,
+from ucs_contracts import (
+    ContractValidationError,
     parse_decision,
 )
 
@@ -23,7 +19,7 @@ def test_parse_propose_decision() -> None:
 
     decision = parse_decision(payload)
 
-    assert isinstance(decision, ProposeDecision)
+    assert decision.decision == "PROPOSE"
     assert decision.target_positions.model_dump(mode="json") == payload[
         "target_positions"
     ]
@@ -37,7 +33,7 @@ def test_parse_clarify_decision() -> None:
 
     decision = parse_decision(payload)
 
-    assert isinstance(decision, ClarifyDecision)
+    assert decision.decision == "CLARIFY"
     assert decision.question == payload["question"]
 
 
@@ -50,8 +46,8 @@ def test_parse_reject_decision() -> None:
 
     decision = parse_decision(payload)
 
-    assert isinstance(decision, RejectDecision)
-    assert decision.reason_code is RejectReasonCode.OUT_OF_SCOPE
+    assert decision.decision == "REJECT"
+    assert decision.reason_code.value == "OUT_OF_SCOPE"
 
 
 def test_reject_decision_can_identify_an_invalid_request() -> None:
@@ -63,8 +59,8 @@ def test_reject_decision_can_identify_an_invalid_request() -> None:
 
     decision = parse_decision(payload)
 
-    assert isinstance(decision, RejectDecision)
-    assert decision.reason_code is RejectReasonCode.INVALID_REQUEST
+    assert decision.decision == "REJECT"
+    assert decision.reason_code.value == "INVALID_REQUEST"
 
 
 @pytest.mark.parametrize(

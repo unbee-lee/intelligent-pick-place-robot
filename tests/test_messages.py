@@ -1,11 +1,12 @@
 import json
 from pathlib import Path
-from typing import Dict, cast
+from typing import Dict, Literal, cast
 
 import pytest
 
-from ucs_contracts import ContractValidationError
-from ucs_contracts.messages import MessageType, validate_message
+from ucs_contracts import ContractValidationError, validate_message
+
+MessageType = Literal["command", "status", "result"]
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "messages"
